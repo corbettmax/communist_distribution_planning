@@ -1,7 +1,13 @@
 import math
-import resource
+import os
+
+try:
+    import resource
+except ImportError:
+    resource = None
 
 import numpy as np
+import pandas as pd
 
 
 def full_matrix(production_df, demand_df, overcompletion):
@@ -9,7 +15,7 @@ def full_matrix(production_df, demand_df, overcompletion):
     indices = list(demand_df["Name"])
 
     for idx in indices:
-        production_df.insert(production_df.shape[1] - 1, idx, 0)
+        production_df.insert(production_df.shape[1] - 1, idx, 0.0)
 
     for idx in indices:
         row = [0]*len(production_df.columns)
@@ -18,14 +24,18 @@ def full_matrix(production_df, demand_df, overcompletion):
         k = dict(zip(production_df.columns, row))
 
 
-        production_df = production_df.append(k, ignore_index=True)
+        production_df = pd.concat(
+            [production_df, pd.DataFrame([k])],
+            ignore_index=True,
+        )
 
     basic_industries = list(demand_df.columns)[1:]
 
 
     for industry in basic_industries:
         for name in indices:
-            value = float(demand_df.loc[demand_df["Name"] == name, industry])
+            values = demand_df.loc[demand_df["Name"] == name, industry]
+            value = float(values.iloc[0]) if len(values) else 0.0
             production_df.loc[production_df["Type"] == industry, name] = value
 
 
@@ -35,11 +45,35 @@ def full_matrix(production_df, demand_df, overcompletion):
 
 
 def memory_limit():
+    if resource is None:
+        return
     soft, hard = resource.getrlimit(resource.RLIMIT_AS)
     resource.setrlimit(resource.RLIMIT_AS, (get_memory() * 1024 / 2, hard))
 
 
 def get_memory():
+    if os.name == "nt":
+        import ctypes
+
+        class MemoryStatus(ctypes.Structure):
+            _fields_ = [
+                ("length", ctypes.c_ulong),
+                ("memory_load", ctypes.c_ulong),
+                ("total_phys", ctypes.c_ulonglong),
+                ("avail_phys", ctypes.c_ulonglong),
+                ("total_page_file", ctypes.c_ulonglong),
+                ("avail_page_file", ctypes.c_ulonglong),
+                ("total_virtual", ctypes.c_ulonglong),
+                ("avail_virtual", ctypes.c_ulonglong),
+                ("avail_extended_virtual", ctypes.c_ulonglong),
+            ]
+
+        status = MemoryStatus()
+        status.length = ctypes.sizeof(status)
+        if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
+            return status.avail_phys // 1024
+        return 0
+
     with open('/proc/meminfo', 'r') as mem:
         free_memory = 0
         for i in mem:

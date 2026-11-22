@@ -64,9 +64,10 @@ def humanity(A, I, y,  cit, n_goods,  x, s = False, sparse = False):
             real = (I_input - A_input ).dot(x)
             A_input[0,cit + j] = demand_civilian
             score = real/(demand_civilian*y[cit + j])
-            h_min  = np.min([score,h_min])
+            score = float(np.asarray(score).min())
+            h_min = min(score, h_min)
 
-    return np.float(h_min)
+    return float(h_min)
 
 
 # def humanity(A, I, y, x, good_columns, profile_columns):
