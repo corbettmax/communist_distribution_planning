@@ -2,7 +2,7 @@ import numpy as np
 np.set_printoptions(formatter={'float': '{: 0.3f}'.format})
 import pandas as pd
 from utils import full_matrix
-from scipy.sparse import linalg
+from scipy.sparse import csc_matrix, linalg
 from metrics import humanity
 from scipy.sparse.linalg import lsmr
 from scipy.optimize import minimize_scalar
@@ -23,7 +23,10 @@ def solve_eq(X, y, io_coeff_functions, A, I, xtm):
         x = xtm + 0.001
         for i in range(3):
             X = get_coeff_matrix(A, I, x, io_coeff_functions)
-            x = linalg.spsolve(X.astype("double"), y.astype("double"))
+            x = linalg.spsolve(
+                csc_matrix(X, dtype="double"),
+                y.astype("double"),
+            )
     return x
 
 
